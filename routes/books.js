@@ -1,6 +1,11 @@
 const express = require("express");
 const Book = require("../models/book");
 
+const jsonschema = require("jsonschema");
+const bookSchema = require("../schemas/bookSchema.json");
+const ExpressError = require("../expressError");
+const bookUpdateSchema = require("../schemas/bookUpdateSchema.json");
+
 const router = new express.Router();
 
 
@@ -26,10 +31,20 @@ router.get("/:id", async function (req, res, next) {
   }
 });
 
+
 /** POST /   bookData => {book: newBook}  */
 
 router.post("/", async function (req, res, next) {
   try {
+    // Validate the POST
+    const validator = jsonschema.validate(req.body, bookSchema);
+
+    if(!validator.valid) {
+      const errs = validator.errors.map(e => e.stack);
+      const error = new ExpressError(errs, 400);
+      return next(error);
+    }
+
     const book = await Book.create(req.body);
     return res.status(201).json({ book });
   } catch (err) {
@@ -41,9 +56,41 @@ router.post("/", async function (req, res, next) {
 
 router.put("/:isbn", async function (req, res, next) {
   try {
+    // Validate PUT
+    const validator = jsonschema.validate(req.body, bookSchema);
+
+    if(!validator.valid) {
+      const errs = validator.errors.map(e => e.stack);
+      const error = new ExpressError(errs, 400);
+      return next(error);
+    }
+
     const book = await Book.update(req.params.isbn, req.body);
     return res.json({ book });
   } catch (err) {
+    return next(err);
+  }
+});
+
+/** Patch /[isbn]   bookData => {book: updatedBook} */
+
+router.patch("/:isbn", async function (req, res, next) {
+  try{
+    const validator = jsonschema.validate(req.body, bookUpdateSchema);
+
+    if(!validator.valid) {
+      const errs = validator.errors.map(e => e.stack);
+      const error = new ExpressError(errs, 400);
+      return next(error);
+    }
+
+    const book = await Book.partialUpdate(
+      req.params.isbn,
+      req.body
+    );
+
+    return res.json({ book });
+  } catch(err) {
     return next(err);
   }
 });

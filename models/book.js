@@ -1,5 +1,5 @@
 const db = require("../db");
-
+const ExpressError = require("../expressError");
 
 /** Collection of related methods for books. */
 
@@ -141,6 +141,44 @@ class Book {
 
     return result.rows[0];
   }
+
+  static async partialUpdate(isbn, data) {
+
+  const foundBook = await db.query(
+    `SELECT isbn
+     FROM books
+     WHERE isbn = $1`,
+    [isbn]
+  );
+
+  if (foundBook.rows.length === 0) {
+    throw new ExpressError("Book not found", 404);
+  }
+
+  const keys = Object.keys(data);
+  const cols = keys.map(
+    (colName, idx) => `"${colName}"=$${idx + 1}`
+  );
+
+  const querySql = `
+    UPDATE books
+    SET ${cols.join(", ")}
+    WHERE isbn = $${keys.length + 1}
+    RETURNING isbn,
+              amazon_url,
+              author,
+              language,
+              pages,
+              publisher,
+              title,
+              year`;
+
+  const values = [...Object.values(data), isbn];
+
+  const result = await db.query(querySql, values);
+
+  return result.rows[0];
+}
 
   /** remove book with matching isbn. Returns undefined. */
 
