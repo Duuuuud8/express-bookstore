@@ -10,7 +10,10 @@ const db = new Client({
   password: "postgres",
   host: "localhost",
   port: 5432,
-  database: "books"
+  database: 
+    process.env.NODE_ENV === "test"
+      ? "books_test"
+      : "books"
 });
 
 db.connect();
